@@ -1,14 +1,17 @@
 'use client';
 import { useEffect, useState } from "react";
 import Plot from "react-plotly.js";
-import Neritic_v2 from "@/components/Neritic_v2"; // ✅ Chatbot integration
+import Neritic_v2 from "@/components/Neritic_v2";
 
 export default function OceanSensePage() {
   const [speciesData, setSpeciesData] = useState([]);
   const [cyclones, setCyclones] = useState([]);
+  const [oceanParams, setOceanParams] = useState(null);
   const [selectedSpecies, setSelectedSpecies] = useState("Rastrelliger kanagurta");
+  const [coords, setCoords] = useState({ lat: 9.9, lon: 76.3 }); // default Kochi
+  const [loading, setLoading] = useState(true);
 
-  // 🌊 Fetch live OBIS data
+  // 🐟 Fetch OBIS species data
   useEffect(() => {
     const fetchSpeciesData = async () => {
       try {
@@ -23,7 +26,7 @@ export default function OceanSensePage() {
     fetchSpeciesData();
   }, [selectedSpecies]);
 
-  // 🌪️ Fetch live cyclone data from IMD API
+  // 🌪️ Fetch live cyclone data (IMD)
   useEffect(() => {
     const fetchCyclones = async () => {
       try {
@@ -35,29 +38,52 @@ export default function OceanSensePage() {
       }
     };
     fetchCyclones();
-    const interval = setInterval(fetchCyclones, 3600000); // refresh every hour
+    const interval = setInterval(fetchCyclones, 3600000); // update every hour
     return () => clearInterval(interval);
   }, []);
 
-  // 🌪️ Prepare cyclone traces for the map
-  const cycloneTraces = cyclones.flatMap((c, i) =>
+  // 📍 Optional: Detect user’s current location
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        pos => setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+        err => console.warn("Geolocation not allowed, using default:", err)
+      );
+    }
+  }, []);
+
+  // 🌡️ Fetch live ocean parameters (SST, salinity, chl-a)
+  useEffect(() => {
+    const fetchOceanParams = async () => {
+      try {
+        const res = await fetch(`/api/ocean?lat=${coords.lat}&lon=${coords.lon}`);
+        const data = await res.json();
+        setOceanParams(data);
+      } catch (err) {
+        console.error("Error fetching ocean parameters:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOceanParams();
+    const interval = setInterval(fetchOceanParams, 1800000); // refresh every 30 min
+    return () => clearInterval(interval);
+  }, [coords]);
+
+  // Prepare cyclone & species traces for Plotly
+  const cycloneTraces = cyclones.flatMap((c) =>
     c.track.map((p, j) => ({
       x: [p.lon],
       y: [p.lat],
       mode: "markers",
       type: "scatter",
       name: `${c.name} (${j + 1})`,
-      marker: {
-        size: 10,
-        color: "orange",
-        symbol: "circle",
-      },
+      marker: { size: 10, color: "orange", symbol: "circle" },
       text: `${c.name} — ${p.datetime}<br>Wind: ${p.wind_speed} knots<br>Pressure: ${p.pressure} hPa`,
       hoverinfo: "text",
     }))
   );
 
-  // 🐟 Prepare species distribution points
   const speciesTrace = {
     x: speciesData.map((d) => d.decimalLongitude),
     y: speciesData.map((d) => d.decimalLatitude),
@@ -73,10 +99,10 @@ export default function OceanSensePage() {
     <div className="relative min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-cyan-800 text-white p-6">
       <h1 className="text-3xl font-semibold mb-2">🌊 OceanSense — Live Fisheries & Cyclone Data</h1>
       <p className="text-gray-300 mb-6">
-        Real-time species distributions with live cyclone overlays across the Indian Ocean.
+        Real-time species distributions with live cyclone overlays and ocean health parameters.
       </p>
 
-      {/* Species selection */}
+      {/* 🐟 Species Selector */}
       <div className="mb-6">
         <label className="block mb-2 font-medium">Select a species:</label>
         <select
@@ -90,7 +116,7 @@ export default function OceanSensePage() {
         </select>
       </div>
 
-      {/* Combined map visualization */}
+      {/* 🗺️ Interactive Map */}
       <Plot
         data={[speciesTrace, ...cycloneTraces]}
         layout={{
@@ -101,12 +127,30 @@ export default function OceanSensePage() {
           legend: { bgcolor: "rgba(0,0,0,0.5)", font: { color: "white" } },
           paper_bgcolor: "transparent",
           plot_bgcolor: "transparent",
-          geo: { projection: { type: "natural earth" } },
         }}
-        style={{ width: "100%", height: "75vh" }}
+        style={{ width: "100%", height: "70vh" }}
       />
 
-      {/* 🧠 Floating Neritic Chatbot */}
+      {/* 🌡️ Live Ocean Parameters */}
+      <div className="mt-6">
+        {loading ? (
+          <p className="text-gray-400 italic">Fetching ocean parameters...</p>
+        ) : oceanParams ? (
+          <div className="bg-gray-900/70 backdrop-blur-md border border-cyan-600 rounded-xl p-4 mt-2 w-full max-w-md">
+            <h3 className="text-cyan-400 font-semibold mb-2">🌡️ Live Ocean Parameters</h3>
+            <p>
+              <strong>Location:</strong> {oceanParams.lat?.toFixed(2)}, {oceanParams.lon?.toFixed(2)}
+            </p>
+            <p>Sea Surface Temperature: <span className="font-medium">{oceanParams.sst} °C</span></p>
+            <p>Salinity: <span className="font-medium">{oceanParams.salinity} PSU</span></p>
+            <p>Chlorophyll-a: <span className="font-medium">{oceanParams.chl} mg/m³</span></p>
+          </div>
+        ) : (
+          <p className="text-red-400 italic">⚠️ Failed to fetch live ocean data.</p>
+        )}
+      </div>
+
+      {/* 🤖 Neritic Chatbot */}
       <Neritic_v2 />
     </div>
   );
