@@ -1,0 +1,77 @@
+[
+  {
+    "scientificName": "Auxis",
+    "category": "Other",
+    "region": [
+      "Laccadive Sea / Central Indian",
+      "Arabian Sea"
+    ],
+    "status": "Ecological",
+    "recordCount": 4
+  },
+  {
+    "scientificName": "Stolephorus",
+    "category": "Other",
+    "region": [
+      "Laccadive Sea / Central Indian",
+      "Arabian Sea"
+    ],
+    "status": "Ecological",
+    "recordCount": 4
+  },
+  {
+    "scientificName": "Bregmaceros mcclellandi",
+    "category": "Other",
+    "region": [
+      "Laccadive Sea / Central Indian",
+      "Arabian Sea"
+    ],
+    "status": "Ecological",
+    "recordCount": 3
+  },
+  {
+    "scientificName": "Crossorhombus azureus",
+    "category": "Other",
+    "region": [
+      "Laccadive Sea / Central Indian"
+    ],
+    "status": "Ecological",
+    "recordCount": 2
+  },
+  {
+    "scientificName": "Sardinella longiceps",
+    "category": "Pelagic",
+    "region": [
+      "Laccadive Sea / Central Indian"
+    ],
+    "status": "Commercial",
+    "recordCount": 2
+  },
+  {
+    "scientificName": "Mene maculata",
+    "category": "Other",
+    "region": [
+      "Laccadive Sea / Central Indian"
+    ],
+    "status": "Ecological",
+    "recordCount": 1
+  },
+  {
+    "scientificName": "Saurida tumbil",
+    "category": "Other",
+    "region": [
+      "Laccadive Sea / Central Indian"
+    ],
+    "status": "Ecological",
+    "recordCount": 1
+  },
+  {
+    "scientificName": "Sphyraena jello",
+    "category": "Other",
+    "region": [
+      "Laccadive Sea / Central Indian"
+    ],
+    "status": "Ecological",
+    "recordCount": 1
+  }
+]

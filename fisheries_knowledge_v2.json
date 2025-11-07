@@ -1,0 +1,43 @@
+[
+  {
+    "type": "species",
+    "common_name": "Indian Mackerel",
+    "scientific_name": "Rastrelliger kanagurta",
+    "region": "Arabian Sea, Bay of Bengal",
+    "local_names": { "Malayalam": "Ayala", "Tamil": "Kanangeluthi" },
+    "significance": "A pelagic fish vital for coastal livelihoods; highly nutritious and central to local cuisines."
+  },
+  {
+    "type": "species",
+    "common_name": "Oil Sardine",
+    "scientific_name": "Sardinella longiceps",
+    "region": "South-west Coast of India",
+    "local_names": { "Malayalam": "Mathi", "Tamil": "Sooda" },
+    "significance": "A keystone pelagic resource; its abundance indicates monsoon upwelling and healthy ecosystems."
+  },
+  {
+    "type": "species",
+    "common_name": "Hilsa Shad",
+    "scientific_name": "Tenualosa ilisha",
+    "region": "Bay of Bengal",
+    "local_names": { "Bengali": "Ilish" },
+    "significance": "An iconic fish of the Ganges delta; central to Bengali heritage and monsoon fishery traditions."
+  },
+  {
+    "type": "method",
+    "title": "Cast Net (Veeshal Vala)",
+    "region": "Kerala Coast",
+    "description": "Circular net with lead weights thrown by hand in shallow waters; used for sardines and anchovies."
+  },
+  {
+    "type": "gear",
+    "title": "Shore Seine (Thallu Vala)",
+    "region": "Tamil Nadu Coast",
+    "description": "Long nets dragged from the shore; cooperative fishing linked to post-monsoon fish migrations."
+  },
+  {
+    "type": "culture",
+    "title": "Monsoon Fishing Pause",
+    "description": "Fishing halts during the monsoon to allow breeding; communities celebrate sea-blessing festivals like Kadalamma Pooja before reopening."
+  }
+]
