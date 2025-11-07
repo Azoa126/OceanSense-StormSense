@@ -39,6 +39,7 @@ Interactive maps with species distribution points
 Filtered visualizations by species or region
 Historical cyclone visualization and live tracking
 Dashboard UI with dark mode and responsive layout
+JSON-based knowledge database for Neritic chatbot integration
 
 Contributing
 Contributions are welcome! Please open issues or submit pull requests for new features, bug fixes, or dataset integrations.
@@ -60,4 +61,4 @@ This project is licensed under the MIT License.
 
 
 
-JSON-based knowledge database for Neritic chatbot integration
+
