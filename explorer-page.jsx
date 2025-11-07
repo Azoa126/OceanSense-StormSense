@@ -1,24 +1,28 @@
 'use client';
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { FaThermometerHalf, FaTint, FaLeaf, FaMapMarkerAlt } from "react-icons/fa";
-import Neritic_v3 from "../../components/Neritic_v3";
+import { FaThermometerHalf, FaTint, FaLeaf, FaMapMarkerAlt, FaSearchLocation } from "react-icons/fa";
+import Neritic_v4 from "../../components/Neritic_v4";
 
 export default function ExplorerPage() {
   const [data, setData] = useState({ sst: "Loading...", chl: "Loading...", salinity: "Loading..." });
   const [coords, setCoords] = useState({ lat: 9.9, lon: 76.3 }); // default: Kochi
+  const [location, setLocation] = useState("Kochi");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // 🔄 Fetch live ocean parameter data
   const fetchData = async (lat, lon) => {
     try {
       setLoading(true);
+      setError(null);
       const res = await fetch(`/api/ocean-parameters?lat=${lat}&lon=${lon}`);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       setData(json);
     } catch (err) {
       console.error("Error fetching ocean parameters:", err);
+      setError("Unable to fetch live data. Please try again later.");
       setData({ sst: "N/A", chl: "N/A", salinity: "N/A" });
     } finally {
       setLoading(false);
@@ -30,27 +34,73 @@ export default function ExplorerPage() {
     fetchData(coords.lat, coords.lon);
   }, []);
 
+  // 📍 Search for a location (geocoding API)
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!location.trim()) return;
+    try {
+      setLoading(true);
+      const res = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1`
+      );
+      const data = await res.json();
+      if (data.results && data.results[0]) {
+        const lat = data.results[0].latitude;
+        const lon = data.results[0].longitude;
+        setCoords({ lat, lon });
+        fetchData(lat, lon);
+      } else {
+        setError("Could not find that location.");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Error fetching coordinates.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6 relative overflow-hidden">
-      {/* 🌍 Header Section */}
+      {/* 🌍 Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-10 text-center"
+        className="mb-8 text-center"
       >
         <h1 className="text-3xl font-bold text-cyan-400 mb-2">🌊 Ocean Explorer Dashboard</h1>
-        <p className="text-gray-400">Live environmental parameters influencing coastal fisheries</p>
+        <p className="text-gray-400">Live environmental parameters shaping ocean productivity</p>
       </motion.div>
 
-      {/* 📍 Location Selector (future interactive map can plug here) */}
+      {/* 🔎 Search bar */}
+      <form onSubmit={handleSearch} className="flex justify-center items-center gap-2 mb-8">
+        <input
+          type="text"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="Search a location (e.g., Mangalore, Kochi)"
+          className="px-4 py-2 rounded-xl bg-gray-800 border border-cyan-700 text-white w-72 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+        />
+        <button
+          type="submit"
+          className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 px-4 py-2 rounded-xl transition"
+        >
+          <FaSearchLocation /> Search
+        </button>
+      </form>
+
+      {/* 📍 Current location */}
       <div className="flex items-center justify-center mb-8">
         <FaMapMarkerAlt className="text-cyan-400 mr-2" />
         <p className="text-gray-300">
-          Current location: <span className="text-white font-semibold">Lat {coords.lat}°, Lon {coords.lon}°</span>
+          Current location:{" "}
+          <span className="text-white font-semibold">
+            {location} (Lat {coords.lat.toFixed(2)}°, Lon {coords.lon.toFixed(2)}°)
+          </span>
         </p>
       </div>
 
-      {/* 📊 Parameter Cards */}
+      {/* ⚙️ Data Cards */}
       <motion.div
         className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-5xl mx-auto"
         initial={{ opacity: 0 }}
@@ -70,7 +120,7 @@ export default function ExplorerPage() {
           <p className="text-sm mt-2 text-gray-400">
             {data.sst !== "N/A"
               ? data.sst > 28
-                ? "Warm waters — stratified surface, moderate productivity."
+                ? "Warm waters — stratified, moderate productivity."
                 : "Cooler waters — nutrient-rich and productive."
               : "Data unavailable."}
           </p>
@@ -89,8 +139,8 @@ export default function ExplorerPage() {
           <p className="text-sm mt-2 text-gray-400">
             {data.chl !== "N/A"
               ? data.chl > 0.3
-                ? "High phytoplankton biomass — strong base for fisheries."
-                : "Low chlorophyll — reduced productivity."
+                ? "High phytoplankton — excellent fish productivity."
+                : "Low chlorophyll — less biological activity."
               : "Data unavailable."}
           </p>
         </motion.div>
@@ -108,25 +158,36 @@ export default function ExplorerPage() {
           <p className="text-sm mt-2 text-gray-400">
             {data.salinity !== "N/A"
               ? data.salinity < 33
-                ? "Lower salinity — potential freshwater influence or cyclone activity."
-                : "Stable marine salinity."
+                ? "Low salinity — possible freshwater or cyclone influence."
+                : "Stable marine salinity levels."
               : "Data unavailable."}
           </p>
         </motion.div>
       </motion.div>
 
       {/* 💬 Neritic AI Assistant */}
-      <Neritic_v3 />
+      <Neritic_v4 />
 
-      {/* 🌀 Loading indicator */}
+      {/* 🌀 Loading Overlay */}
       {loading && (
         <motion.div
-          className="absolute inset-0 flex items-center justify-center bg-black/50 text-cyan-400 text-lg"
+          className="absolute inset-0 flex items-center justify-center bg-black/60 text-cyan-400 text-lg backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
           Fetching live ocean data...
         </motion.div>
+      )}
+
+      {/* ⚠️ Error */}
+      {error && (
+        <motion.p
+          className="text-center text-red-400 mt-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          {error}
+        </motion.p>
       )}
     </div>
   );
