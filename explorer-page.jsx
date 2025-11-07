@@ -1,136 +1,137 @@
 'use client';
-import { useState, useEffect } from "react";
+
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import { FaGlobeAsia, FaFish, FaWater, FaTemperatureHigh } from "react-icons/fa";
+import { FaWater, FaThermometerHalf, FaSeedling } from "react-icons/fa";
 import Neritic_v2 from "@/components/Neritic_v2";
 
-// Dynamic Leaflet import for Next.js
-const MapContainer = dynamic(() => import("react-leaflet").then(m => m.MapContainer), { ssr: false });
-const TileLayer = dynamic(() => import("react-leaflet").then(m => m.TileLayer), { ssr: false });
-const Marker = dynamic(() => import("react-leaflet").then(m => m.Marker), { ssr: false });
-const Popup = dynamic(() => import("react-leaflet").then(m => m.Popup), { ssr: false });
-const Polyline = dynamic(() => import("react-leaflet").then(m => m.Polyline), { ssr: false });
+// ✅ Dynamic imports for Leaflet (client-side only)
+const MapContainer = dynamic(() => import("react-leaflet").then(mod => mod.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import("react-leaflet").then(mod => mod.TileLayer), { ssr: false });
+const CircleMarker = dynamic(() => import("react-leaflet").then(mod => mod.CircleMarker), { ssr: false });
+const Popup = dynamic(() => import("react-leaflet").then(mod => mod.Popup), { ssr: false });
 
 export default function ExplorerPage() {
-  const [cyclones, setCyclones] = useState([]);
-  const [speciesData, setSpeciesData] = useState([]);
-  const [selectedSpecies, setSelectedSpecies] = useState("Rastrelliger kanagurta");
-  const [layer, setLayer] = useState("sst"); // SST, chlorophyll, salinity
+  const [sstData, setSstData] = useState([]);
+  const [salinityData, setSalinityData] = useState([]);
+  const [chlData, setChlData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // 🌀 Fetch live cyclone data
+  // 🌊 Fetch live SST, Salinity, and Chlorophyll-a data
   useEffect(() => {
-    const fetchCyclones = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch("https://mausam.imd.gov.in/backend/imd_api/cyclone_info/active");
-        const data = await res.json();
-        setCyclones(data?.data || []);
+        const [sstRes, salRes, chlRes] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_SST_API}`),
+          fetch(`${process.env.NEXT_PUBLIC_SALINITY_API}`),
+          fetch(`${process.env.NEXT_PUBLIC_CHL_API}`)
+        ]);
+
+        const [sstJson, salJson, chlJson] = await Promise.all([
+          sstRes.json(),
+          salRes.json(),
+          chlRes.json()
+        ]);
+
+        setSstData(sstJson?.data || []);
+        setSalinityData(salJson?.data || []);
+        setChlData(chlJson?.data || []);
       } catch (err) {
-        console.error("Error fetching cyclone data:", err);
+        console.error("Error fetching live data:", err);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchCyclones();
+
+    fetchData();
+    const interval = setInterval(fetchData, 3600000); // refresh hourly
+    return () => clearInterval(interval);
   }, []);
 
-  // 🐟 Fetch live OBIS data
-  useEffect(() => {
-    const fetchSpecies = async () => {
-      try {
-        const url = `${process.env.NEXT_PUBLIC_OBIS_API}?scientificname=${encodeURIComponent(selectedSpecies)}&limit=50`;
-        const res = await fetch(url);
-        const data = await res.json();
-        setSpeciesData(data.results || []);
-      } catch (err) {
-        console.error("Error fetching species data:", err);
-      }
-    };
-    fetchSpecies();
-  }, [selectedSpecies]);
-
-  // 🌊 Define overlay URLs for SST, Chlorophyll, Salinity
-  const overlays = {
-    sst: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Aqua_L3_SST_Temporal_8Day_4km/default/2025-11-01/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg",
-    chlorophyll: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Aqua_L3_Chlorophyll_A_Temporal_8Day_4km/default/2025-11-01/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg",
-    salinity: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/SMAP_L3_SSS_SMI_8Day_RunningMean_70km_Eq_A/default/2025-11-01/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg"
-  };
+  // 🗺️ Render map markers for parameters
+  const renderMarkers = (data, color, label, key) =>
+    data.slice(0, 100).map((point, i) => (
+      <CircleMarker
+        key={i}
+        center={[point.lat, point.lon]}
+        radius={4}
+        color={color}
+        fillOpacity={0.7}
+      >
+        <Popup>
+          <b>{label}</b><br />
+          {key}: {point[key]}<br />
+          Lat: {point.lat.toFixed(2)}, Lon: {point.lon.toFixed(2)}
+        </Popup>
+      </CircleMarker>
+    ));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-teal-800 text-white p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-3xl font-semibold flex items-center gap-2">
-          <FaGlobeAsia className="text-cyan-400" /> Ocean–Earth Explorer
-        </h1>
-
-        {/* Species selector */}
-        <select
-          value={selectedSpecies}
-          onChange={(e) => setSelectedSpecies(e.target.value)}
-          className="text-black p-2 rounded"
-        >
-          <option value="Rastrelliger kanagurta">Indian Mackerel</option>
-          <option value="Thunnus albacares">Yellowfin Tuna</option>
-          <option value="Sardinella longiceps">Indian Oil Sardine</option>
-        </select>
-      </div>
-
-      {/* Parameter toggle */}
-      <div className="flex gap-3 mb-4">
-        <button
-          onClick={() => setLayer("sst")}
-          className={`p-2 rounded ${layer === "sst" ? "bg-cyan-600" : "bg-gray-700"}`}
-        >
-          <FaTemperatureHigh className="inline mr-2" /> SST
-        </button>
-        <button
-          onClick={() => setLayer("chlorophyll")}
-          className={`p-2 rounded ${layer === "chlorophyll" ? "bg-green-600" : "bg-gray-700"}`}
-        >
-          🌿 Chlorophyll-a
-        </button>
-        <button
-          onClick={() => setLayer("salinity")}
-          className={`p-2 rounded ${layer === "salinity" ? "bg-blue-600" : "bg-gray-700"}`}
-        >
-          🧂 Salinity
-        </button>
-      </div>
-
-      {/* Map */}
-      <MapContainer center={[10, 80]} zoom={4} style={{ height: "75vh", width: "100%" }}>
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <TileLayer url={overlays[layer]} opacity={0.6} />
-
-        {/* Cyclone paths */}
-        {cyclones.map((c, i) => (
-          <Polyline key={i} positions={c.track.map(p => [p.lat, p.lon])} color="orange" weight={3} />
-        ))}
-
-        {/* Species markers */}
-        {speciesData.map((s, i) => (
-          <Marker key={i} position={[s.decimalLatitude, s.decimalLongitude]}>
-            <Popup>
-              <b>{s.scientificName}</b><br />
-              Depth: {s.depth} m<br />
-              Location: {s.locality || "N/A"}
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
-
-      {/* Info Panel */}
-      <motion.div
-        className="mt-6 bg-gray-800/70 p-4 rounded-xl shadow-md border border-cyan-600"
-        initial={{ opacity: 0, y: 20 }}
+    <div className="relative min-h-screen bg-gradient-to-br from-gray-900 via-indigo-900 to-cyan-900 text-white p-6 overflow-hidden">
+      <motion.h1
+        className="text-3xl font-semibold mb-2"
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h2 className="text-xl font-semibold mb-3">🌊 Live Ocean Parameters</h2>
-        <p>🌀 Cyclones Active: {cyclones.length > 0 ? cyclones.map(c => c.name).join(", ") : "None"}</p>
-        <p>🐟 Species Displayed: {selectedSpecies}</p>
-        <p>🌡️ Parameter Active: {layer.toUpperCase()}</p>
+        🌍 Ocean Explorer — Live Environmental Dashboard
+      </motion.h1>
+
+      <motion.p
+        className="text-gray-300 mb-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
+        Real-time Sea Surface Temperature, Salinity, and Chlorophyll-a concentrations across the Indian Ocean.
+      </motion.p>
+
+      {loading ? (
+        <p className="text-gray-400 italic">Fetching live environmental data...</p>
+      ) : (
+        <MapContainer
+          center={[10, 80]}
+          zoom={4}
+          style={{ height: "75vh", width: "100%", borderRadius: "12px" }}
+        >
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          {renderMarkers(sstData, "red", "Sea Surface Temp", "sst")}
+          {renderMarkers(salinityData, "blue", "Salinity", "salinity")}
+          {renderMarkers(chlData, "green", "Chlorophyll-a", "chl_a")}
+        </MapContainer>
+      )}
+
+      {/* 🌡️ Info Panels */}
+      <motion.div
+        className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
+        <div className="bg-gray-800/70 p-4 rounded-xl border border-red-500">
+          <FaThermometerHalf className="text-red-400 text-2xl mb-2" />
+          <h3 className="font-semibold text-lg">Sea Surface Temperature</h3>
+          <p className="text-gray-400 text-sm">
+            Indicates ocean warming and fish habitat shifts.
+          </p>
+        </div>
+
+        <div className="bg-gray-800/70 p-4 rounded-xl border border-blue-500">
+          <FaWater className="text-blue-400 text-2xl mb-2" />
+          <h3 className="font-semibold text-lg">Salinity</h3>
+          <p className="text-gray-400 text-sm">
+            Key for understanding stratification and circulation.
+          </p>
+        </div>
+
+        <div className="bg-gray-800/70 p-4 rounded-xl border border-green-500">
+          <FaSeedling className="text-green-400 text-2xl mb-2" />
+          <h3 className="font-semibold text-lg">Chlorophyll-a</h3>
+          <p className="text-gray-400 text-sm">
+            Reflects phytoplankton abundance and productivity.
+          </p>
+        </div>
       </motion.div>
 
-      {/* Chatbot */}
+      {/* 🧠 Floating Neritic Chatbot (Live Ocean Assistant) */}
       <Neritic_v2 />
     </div>
   );
