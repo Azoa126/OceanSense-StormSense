@@ -1,14 +1,17 @@
 'use client';
 import { useEffect, useState } from "react";
 import Plot from "react-plotly.js";
-import Neritic_v2 from "@/components/Neritic_v2";
+import dynamic from "next/dynamic";
+
+// ✅ Corrected import
+const Neritic_v2 = dynamic(() => import("./Neritic_v2"), { ssr: false });
 
 export default function OceanSensePage() {
   const [speciesData, setSpeciesData] = useState([]);
   const [cyclones, setCyclones] = useState([]);
   const [oceanParams, setOceanParams] = useState(null);
   const [selectedSpecies, setSelectedSpecies] = useState("Rastrelliger kanagurta");
-  const [coords, setCoords] = useState({ lat: 9.9, lon: 76.3 }); // default Kochi
+  const [coords, setCoords] = useState({ lat: 9.9, lon: 76.3 }); // default: Kochi
   const [loading, setLoading] = useState(true);
 
   // 🐟 Fetch OBIS species data
@@ -42,12 +45,12 @@ export default function OceanSensePage() {
     return () => clearInterval(interval);
   }, []);
 
-  // 📍 Optional: Detect user’s current location
+  // 📍 Detect user’s location
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         pos => setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-        err => console.warn("Geolocation not allowed, using default:", err)
+        err => console.warn("Geolocation not allowed:", err)
       );
     }
   }, []);
@@ -70,7 +73,6 @@ export default function OceanSensePage() {
     return () => clearInterval(interval);
   }, [coords]);
 
-  // Prepare cyclone & species traces for Plotly
   const cycloneTraces = cyclones.flatMap((c) =>
     c.track.map((p, j) => ({
       x: [p.lon],
