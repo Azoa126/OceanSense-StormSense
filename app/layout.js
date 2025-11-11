@@ -1,6 +1,8 @@
+import "./globals.css";
+
 export const metadata = {
-  title: 'Ocean Sense',
-  description: 'Coastal and marine insights powered by Ocean Sense.',
+  title: "OceanSense 🌊",
+  description: "Live ocean intelligence assistant",
 };
 
 export default function RootLayout({ children }) {
