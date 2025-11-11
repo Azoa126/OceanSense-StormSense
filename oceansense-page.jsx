@@ -1,61 +1,63 @@
 'use client';
 import { useEffect, useState } from "react";
-import Plot from "react-plotly.js";
 import dynamic from "next/dynamic";
-
-// ✅ Corrected import
-const Neritic_v2 = dynamic(() => import("./Neritic_v2"), { ssr: false });
+import Head from "next/head";
+import Plot from "react-plotly.js";
+import { motion } from "framer-motion";
+import { FaFish } from "react-icons/fa";
+import Neritic_v2 from "@/components/Neritic_v2";
 
 export default function OceanSensePage() {
   const [speciesData, setSpeciesData] = useState([]);
   const [cyclones, setCyclones] = useState([]);
   const [oceanParams, setOceanParams] = useState(null);
   const [selectedSpecies, setSelectedSpecies] = useState("Rastrelliger kanagurta");
-  const [coords, setCoords] = useState({ lat: 9.9, lon: 76.3 }); // default: Kochi
+  const [coords, setCoords] = useState({ lat: 9.9, lon: 76.3 }); // Default: Kochi
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // 🐟 Fetch OBIS species data
+  // 🐟 Fetch species data from OBIS
   useEffect(() => {
     const fetchSpeciesData = async () => {
       try {
         const url = `${process.env.NEXT_PUBLIC_OBIS_API}?scientificname=${encodeURIComponent(selectedSpecies)}&limit=100`;
         const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         setSpeciesData(data.results || []);
       } catch (err) {
-        console.error("Error fetching OBIS data:", err);
+        console.error("OBIS fetch error:", err);
+        setError("⚠️ Failed to load species data. Try again later.");
       }
     };
     fetchSpeciesData();
   }, [selectedSpecies]);
 
-  // 🌪️ Fetch live cyclone data (IMD)
+  // 🌪️ Fetch live cyclone data
   useEffect(() => {
     const fetchCyclones = async () => {
       try {
-        const res = await fetch("https://mausam.imd.gov.in/backend/imd_api/cyclone_info/active");
+        const res = await fetch(process.env.NEXT_PUBLIC_IMD_API || "https://mausam.imd.gov.in/backend/imd_api/cyclone_info/active");
         const data = await res.json();
         setCyclones(data?.data || []);
       } catch (err) {
-        console.error("Error fetching cyclone data:", err);
+        console.error("Cyclone fetch error:", err);
       }
     };
     fetchCyclones();
-    const interval = setInterval(fetchCyclones, 3600000); // update every hour
-    return () => clearInterval(interval);
   }, []);
 
-  // 📍 Detect user’s location
+  // 📍 User’s location (optional)
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         pos => setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-        err => console.warn("Geolocation not allowed:", err)
+        () => console.warn("Using default location")
       );
     }
   }, []);
 
-  // 🌡️ Fetch live ocean parameters (SST, salinity, chl-a)
+  // 🌡️ Fetch live ocean parameters
   useEffect(() => {
     const fetchOceanParams = async () => {
       try {
@@ -63,16 +65,15 @@ export default function OceanSensePage() {
         const data = await res.json();
         setOceanParams(data);
       } catch (err) {
-        console.error("Error fetching ocean parameters:", err);
+        console.error("Ocean params error:", err);
       } finally {
         setLoading(false);
       }
     };
     fetchOceanParams();
-    const interval = setInterval(fetchOceanParams, 1800000); // refresh every 30 min
-    return () => clearInterval(interval);
   }, [coords]);
 
+  // Prepare Plotly Traces
   const cycloneTraces = cyclones.flatMap((c) =>
     c.track.map((p, j) => ({
       x: [p.lon],
@@ -99,9 +100,19 @@ export default function OceanSensePage() {
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-cyan-800 text-white p-6">
-      <h1 className="text-3xl font-semibold mb-2">🌊 OceanSense — Live Fisheries & Cyclone Data</h1>
+      <Head>
+        <title>OceanSense 🌊 — Live Fisheries & Cyclone Visualizer</title>
+        <meta
+          name="description"
+          content="Real-time visualization of Indian fisheries, cyclones, and ocean health parameters using live oceanographic and meteorological data."
+        />
+      </Head>
+
+      <h1 className="text-3xl font-semibold mb-2 flex items-center gap-2">
+        <FaFish className="text-cyan-400" /> OceanSense — Fisheries & Ocean Health
+      </h1>
       <p className="text-gray-300 mb-6">
-        Real-time species distributions with live cyclone overlays and ocean health parameters.
+        Interactive marine dashboard visualizing fish species distributions, cyclones, and real-time ocean parameters.
       </p>
 
       {/* 🐟 Species Selector */}
@@ -118,42 +129,53 @@ export default function OceanSensePage() {
         </select>
       </div>
 
-      {/* 🗺️ Interactive Map */}
-      <Plot
-        data={[speciesTrace, ...cycloneTraces]}
-        layout={{
-          title: `${selectedSpecies} Distribution + Active Cyclones`,
-          xaxis: { title: "Longitude" },
-          yaxis: { title: "Latitude" },
-          showlegend: true,
-          legend: { bgcolor: "rgba(0,0,0,0.5)", font: { color: "white" } },
-          paper_bgcolor: "transparent",
-          plot_bgcolor: "transparent",
-        }}
-        style={{ width: "100%", height: "70vh" }}
-      />
+      {/* 🗺️ Plotly Visualization */}
+      {error ? (
+        <p className="text-red-400 italic">{error}</p>
+      ) : (
+        <Plot
+          data={[speciesTrace, ...cycloneTraces]}
+          layout={{
+            title: `${selectedSpecies} Distribution + Active Cyclones`,
+            xaxis: { title: "Longitude" },
+            yaxis: { title: "Latitude" },
+            showlegend: true,
+            legend: { bgcolor: "rgba(0,0,0,0.5)", font: { color: "white" } },
+            paper_bgcolor: "transparent",
+            plot_bgcolor: "transparent",
+          }}
+          style={{ width: "100%", height: "70vh" }}
+          config={{ responsive: true }}
+        />
+      )}
 
-      {/* 🌡️ Live Ocean Parameters */}
-      <div className="mt-6">
+      {/* 🌡️ Ocean Parameters */}
+      <motion.div
+        className="mt-6 bg-gray-900/70 backdrop-blur-md border border-cyan-600 rounded-xl p-4 w-full max-w-md"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <h3 className="text-cyan-400 font-semibold mb-2">🌡️ Live Ocean Parameters</h3>
         {loading ? (
-          <p className="text-gray-400 italic">Fetching ocean parameters...</p>
+          <p className="text-gray-400 italic">Fetching live data...</p>
         ) : oceanParams ? (
-          <div className="bg-gray-900/70 backdrop-blur-md border border-cyan-600 rounded-xl p-4 mt-2 w-full max-w-md">
-            <h3 className="text-cyan-400 font-semibold mb-2">🌡️ Live Ocean Parameters</h3>
+          <>
             <p>
               <strong>Location:</strong> {oceanParams.lat?.toFixed(2)}, {oceanParams.lon?.toFixed(2)}
             </p>
             <p>Sea Surface Temperature: <span className="font-medium">{oceanParams.sst} °C</span></p>
             <p>Salinity: <span className="font-medium">{oceanParams.salinity} PSU</span></p>
             <p>Chlorophyll-a: <span className="font-medium">{oceanParams.chl} mg/m³</span></p>
-          </div>
+          </>
         ) : (
           <p className="text-red-400 italic">⚠️ Failed to fetch live ocean data.</p>
         )}
-      </div>
+      </motion.div>
 
       {/* 🤖 Neritic Chatbot */}
-      <Neritic_v2 />
+      <div className="mt-6">
+        <Neritic_v2 />
+      </div>
     </div>
   );
 }
