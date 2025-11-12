@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { FaRobot, FaThermometerHalf, FaTint, FaLeaf } from "react-icons/fa";
 import ReactMarkdown from "react-markdown";
 
-export default function Neritic_v3() {
+export default function Neritic_v2() {
   const [messages, setMessages] = useState([
     { role: "neritic", content: "Hello! I'm Neritic 🌊 — your live ocean intelligence assistant. Ask me about fish species, cyclones, or ocean conditions like SST, chlorophyll, or salinity!" }
   ]);
@@ -134,3 +134,4 @@ export default function Neritic_v3() {
     </motion.div>
   );
 }
+
