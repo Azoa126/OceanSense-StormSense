@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+numpy
+scipy
+scikit-learn
+requests
+xarray
+rasterio
